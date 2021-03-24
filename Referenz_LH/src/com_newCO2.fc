@@ -1,0 +1,13 @@
+c-------------------------------------------------------------------------
+C....included by VPO (September 1999) for new CO2 cooling parameterization
+c      real pco2(17),pam(17),pxnlte(17)
+c      real HLOGPRES(73),HCO2VMR(73),HN2VMR(73),HO2VMR(73),HOVMR(73),
+c     &  HAVWEI(73)
+
+      common/CO2_PARA/ pco2(17),pam(17),pxnlte(17),
+     &  HLOGPRES(93),HCO2VMR(73),HN2VMR(93),HO2VMR(93),HOVMR(93),
+     &  HAVWEI(73),RFDMOL(73)
+c      common /PIRFEC/ IREP
+c--------------------------------------------------------------------------
+
+

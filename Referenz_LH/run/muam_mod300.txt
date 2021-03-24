@@ -1,0 +1,110 @@
+######################MUAM-NAMELIST##########################
+NAMELIST /RUN/ NPHI,NEND,NPRINT,NOUT,NTIME,KRET,NSUN,NDEK
+NAMELIST /INI/ FIN,FOUT,FMOD,FO3,FUVT
+NAMELIST /LOB/ TLB,T00,T11,T22,T33,G00,G11,G22,G33
+NAMELIST /FOR/ MFORC,MUVIR,MIOND,LODEF
+NAMELIST /PWS/ I_2d,I_SK,I_KW,I_FK,I_NK,I_10,I_11,I_12,I_13,I_21,I_23
+NAMELIST /PWX/ Xm2d,XmSK,XmFK,XmKW,XmNK,Xm10,Xm11,Xm12,Xm13,Xm21,Xm23
+NAMELIST /PWP/ Per_2d,Per_SK,Per_FK,Per_KW,Per_NK,Per_10,Per_11,Per_12,Per_13,Per_21,Per_23
+NAMELIST /PWF/ fi0_2d,fi0_SK,fi0_FK,fi0_KW,fi0_NK,fi0_10,fi0_11,fi0_12,fi0_13,fi0_21,fi0_23
+NAMELIST /GRW/ XL,WAMPX,CPHASE,TETA
+NAMELIST /SOL/ F107,SOLE,SOLC,OZON,CO2
+#############################################################
+
+&RUN 
+ NPHI   = 46080,
+ NEND   = 115200,
+ NPRINT = 384,
+ NOUT   = 16,
+ NTIME  = 16,
+ KRET   = 0,
+ NSUN   = 126720,  
+ NDEK   = 15,
+ YEAR   = 2005/
+&INI 
+ FOLD   = "f2_270_Jan_tst",
+ FNEW   = "f2_300_Jan_tst", 
+ FO3    = "o3data_2005.txt",
+ FCO2   = "co2_monthly.txt"/
+&FDX
+ FUVT   = "uvt300_Jan_tst.dx",
+ FPHI   = "phi.dx", 
+ FVER   = "wvel.dx",
+ FGFU   = "gwfu.dx",
+ FGFV   = "gwfv.dx",
+ FGAU   = "gwau.dx",
+ FGAT   = "gwat.dx",
+ FGAV   = "gwav.dx" /
+&LOB
+ TLB	= "T_lower.dat",
+ T00	= "T0_1000mb.dat",
+ T11	= "T1_1000mb.dat",
+ T22	= "T2_1000mb.dat",
+ T33	= "T3_1000mb.dat",
+ G00	= "g0_1000mb.dat",
+ G11	= "g1_1000mb.dat",
+ G22	= "g2_1000mb.dat",
+ G33	= "g3_1000mb.dat" /
+&FOR
+ MFORC  = 2, 
+ MUVIR  = 2,
+ MIOND  = 2,
+ LODEF  = 1 /
+&PWS 
+ I_2d   = 0,
+ I_SK   = 0,
+ I_KW   = 0,
+ I_FK   = 0,
+ I_NK   = 0,
+ I_10   = 0,
+ I_11   = 0,
+ I_12   = 0,
+ I_13   = 0,
+ I_21   = 0,
+ I_23   = 0 /
+&PWX
+ Xm2d   = 3.,
+ XmSK   = 1.,
+ XmFK   = 1.,
+ XmKW   = 1.,
+ XmNK   = 1.,
+ Xm10   = 1.,
+ Xm11   = 1.,
+ Xm12   = 1.,
+ Xm13   = 1.,
+ Xm21   = 2.,
+ Xm23   = 2. /
+&PWP
+ Per_2d = -189.0E+3,
+ Per_SK = 1209.6E+3,
+ Per_FK =  604.8E+3,
+ Per_KW =  324.0E+3,
+ Per_NK =   94.5E+3,
+ Per_10 =  -82.3E+3,
+ Per_11 = -345.6E+3,
+ Per_12 = -792.0E+3,
+ Per_13 =-1296.0E+3,
+ Per_21 = -345.6E+3,
+ Per_23 =-1296.0E+3 /
+&PWF
+ fi0_2d =   2.900E-4,
+ fi0_SK =   0.020E-4,
+ fi0_FK =   0.020E-4,
+ fi0_KW =   0.024E-4,
+ fi0_NK =   0.020E-4,
+ fi0_10 =   0.040E-4,
+ fi0_11 =   0.000127339,
+ fi0_12 =   0.000100145,
+ fi0_13 =   4.1607e-05,
+ fi0_21 =   2.79053e-06,
+ fi0_23 =   0.000153258/
+&GRW 
+ XL     = 300000.,
+ WAMPX  = 0.01,
+ CPHASE = 5. 10. 15.  20.  25.  30.,
+ TETA   = 0. 45. 90. 135. 180. 225. 270. 315.,
+ GWAM   = Jan /
+&SOL
+ F107   = 120.,
+ SOLE   = 1.00,
+ SOLC   = 1365.0/

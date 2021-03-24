@@ -1,0 +1,367 @@
+      subroutine acc_ASM
+      include 'com_main.fc'
+      include 'com_namelist.fc'
+      include 'netcdf.inc'
+      
+      
+! Input parameters for egwd
+      REAL*8 :: vy1d(kgit)     !v-wind
+      REAL*8 :: vx1d(kgit)     !u-wind
+      REAL*8 :: temp1d(kgit)   !temperature 
+      REAL*8 :: cp1d(kgit)     !Cp
+      REAL*8 :: hm(kgit)       !geopotential height (in m)
+      REAL*8 :: pres(kgit)     !pressure (in Pa)
+      REAL*8 :: rho(kgit)      !density
+      
+! Output variables for egwd
+      REAL*8 :: ut_gwd(kgit)   !ut_gwd=xv*gwd, xv=vx1d/u_source, u_source=sqrt(vx²+vy²) or vy1d(n)*yv + vx1d(n)*xv - Amplitude of the horizontal wind, gwd - drag
+      REAL*8 :: vt_gwd(kgit)   !vt_gwd=yv*gwd, yv=vy1d/u_source
+      REAL*8 :: gwh_ir(kgit), gwh_dif(kgit),
+     &          var_tot(kgit), flux_tot(kgit)   !gwh_ir - irreversible heating (K/s), gwh_dif - differential heating/cooling (K/s)
+      real acc(igit, nb, kgit, 3)
+      real fgru_AM(kgit, igit, nb),fgrv_AM(kgit, igit, nb),
+     &     fgrt_AM(kgit, igit, nb)
+      real work1(nb),work2(nb),work3(nb)
+
+! Output variables for nc file      
+      character (len = *), parameter :: FILE_NAME = "gw_drag_4D.nc"
+      integer :: ncid
+
+! We are writing 4D data, a 56 x 36 x 64 lvl-lat-lon grid, with 1440
+! timesteps of data.
+      integer, parameter :: NDIMS = 4, time = 360 !1440
+      character (len = *), parameter :: LVL_NAME = "level"
+      character (len = *), parameter :: LAT_NAME = "latitude"
+      character (len = *), parameter :: LON_NAME = "longitude"
+      character (len = *), parameter :: REC_NAME = "time"
+      integer :: lvl_dimid, lon_dimid, lat_dimid, rec_dimid
+
+! The start and count arrays will tell the netCDF library where to
+! write our data.
+      integer :: start(NDIMS), count(NDIMS)
+
+! These program variables hold the latitudes, longitudes and levels.
+      real :: lats(nb), lons(igit), levs(kgit)
+      integer :: lon_varid, lat_varid, lvl_varid
+
+! We will create two netCDF variables, one each for temperature and
+! pressure fields.
+      character (len = *), parameter :: GWu_NAME="GWu_drag"
+      character (len = *), parameter :: GWv_NAME="GWv_drag"
+      character (len = *), parameter :: GWt_NAME="GWt_drag"
+      integer :: gwu_varid, gwv_varid, gwt_varid
+      integer :: dimids(NDIMS)
+      integer :: retval
+
+! We recommend that each variable carry a "units" attribute.
+      character (len = *), parameter :: UNITS = "units"
+      character (len = *), parameter :: GWu_UNITS = 
+     &                                  "meter/second per second"
+      character (len = *), parameter :: GWv_UNITS = 
+     &                                  "meter/second per second"
+      character (len = *), parameter :: GWt_UNITS = "kelvin per second"
+      character (len = *), parameter :: LAT_UNITS = "degrees"
+      character (len = *), parameter :: LON_UNITS = "degrees"
+      character (len = *), parameter :: LVL_UNITS = "kilometer"
+
+! Program variables to hold the data we will write out. 
+      real :: gwu_out(time,kgit, nb, igit)
+      real :: gwv_out(time,kgit, nb, igit)
+      real :: gwt_out(time,kgit, nb, igit)
+
+! Use these to construct some latitude and longitude data for this
+! example.
+      real, parameter :: START_LAT = -87.5, START_LON = 0.,
+     &                   START_LVL = 1.421
+
+! Loop indices
+      integer :: lvl, lat, lon, rec, i
+ 
+! Create variables for latitude, longitude and levels
+      do lat = 1, nb
+         lats(lat) = START_LAT + (lat - 1) * 5.0
+      end do
+      do lon = 1, igit
+         lons(lon) = START_LON + (lon - 1) * 5.625
+      end do
+      do lvl = 1, kgit
+         levs(lvl) = START_LVL + (lvl - 1) * 2.842
+      end do
+         
+! Calculation of GW drag      
+      eff  = 1.-exp(-float(nsec)/30./86400.)
+      do i=1,igit
+        do j=1,nb
+          do k=1,kgit
+          
+             vx1d(k)=an1(j,k,i,1)
+             vy1d(k)=an1(j,k,i,2)
+             temp1d(k)=an1(j,k,i,3)
+             hm(k)=fin1(j,k,i)/9.81
+             cp1d(k)=1005.0
+             pres(k)=1.e5*exp(-z(k)/7.)
+             rho(k)=pres(k)*rm(k)/an1(j,k,i,3)/RgSI
+             
+           enddo
+	
+           call EYGwave_RSHU(i,j,geddy,rho,vx1d,vy1d,temp1d,cp1d,hm, 
+     &                       ut_gwd, vt_gwd, pres, gwh_ir, gwh_dif,
+     &                       var_tot, flux_tot)
+	     
+           do k=1,kgit
+	          acc(i,j,k,1)=real(ut_gwd(k))             !zonal GW drag
+		      acc(i,j,k,2)=real(vt_gwd(k))             !meridional GW drag
+		      acc(i,j,k,3)=real(gwh_ir(k)+gwh_dif(k))  !warming or cooling due to GW
+	       enddo
+        enddo
+      enddo
+      
+! Smoothing in longitude
+      do j=1,nb
+        do k=1,kgit
+          do i=1,igit
+          
+             ip1=i+1
+             ip2=i+2
+             im1=i-1
+             im2=i-2
+             
+             if(i.eq.1) then
+               im1=igit
+               im2=igit-1
+             end if
+             
+             if(i.eq.2) im2=igit
+             
+             if(i.eq.igit) then
+               ip1=1
+               ip2=2
+             end if
+             
+             if(i.eq.igit-1) ip2=1
+             
+             fgru_AM(k,i,j) = eff*(acc(im2,j,k,1)+acc(im1,j,k,1)+
+     &                        acc(i,j,k,1)+acc(ip2,j,k,1)+
+     &                        acc(ip1,j,k,1))/5.  
+             fgrv_AM(k,i,j) = eff*(acc(im2,j,k,2)+acc(im1,j,k,2)+
+     &                        acc(i,j,k,2)+acc(ip2,j,k,2)+
+     &                        acc(ip1,j,k,2))/5. 
+             fgrt_AM(k,i,j) = eff*(acc(im2,j,k,3)+acc(im1,j,k,3)+
+     &                        acc(i,j,k,3)+acc(ip2,j,k,3)+
+     &                        acc(ip1,j,k,3))/5.
+
+          enddo
+        enddo
+      enddo
+       
+! Smoothing in latitude
+      do i=1,igit
+        do k=8,kgit
+          do j=1,nb
+          
+             work1(j)=fgru_AM(k,i,j)
+             work2(j)=fgrv_AM(k,i,j)
+             work3(j)=fgrt_AM(k,i,j)
+             
+          end do
+          do j=2,nb-1
+          
+             jp1=j+1
+             jm1=j-1
+             
+             fgru_AM(k,i,j)= (work1(jm1)+work1(j)+work1(jp1))/3.  
+             fgrv_AM(k,i,j)= (work2(jm1)+work2(j)+work2(jp1))/3.  
+             fgrt_AM(k,i,j)= (work3(jm1)+work3(j)+work3(jp1))/3.  
+             
+          end do
+        end do
+      end do
+      
+      do j=1,nb
+        do k=3,kgit-2
+          do i=1,igit
+          
+             acc(i,j,k,1)=fgru_AM(k,i,j)
+             acc(i,j,k,2)=fgrv_AM(k,i,j)
+             acc(i,j,k,3)=fgrt_AM(k,i,j)
+             
+          end do
+        end do
+      end do
+      
+! Smoothing in altitude      
+      do j=1,nb
+        do k=3,kgit-2
+          do i=1,igit
+          
+             kp1=k+1
+             kp2=k+2
+             km1=k-1
+             km2=k-2
+             
+             fgru(k,i,j)=fgru(k,i,j)+(acc(i,j,km2,1)+acc(i,j,km1,1)+
+     &                   acc(i,j,k,1)+acc(i,j,kp1,1)+acc(i,j,kp2,1))/5.  
+             fgrv(k,i,j)=fgrv(k,i,j)+(acc(i,j,km2,2)+acc(i,j,km1,2)+
+     &                   acc(i,j,k,2)+acc(i,j,km1,2)+acc(i,j,kp2,2))/5. 
+             fgrt(k,i,j)=fgrt(k,i,j)+(acc(i,j,km2,3)+acc(i,j,km1,3)+
+     &                   acc(i,j,k,3)+acc(i,j,kp1,3)+acc(i,j,kp2,3))/5. 
+     
+          enddo
+        enddo
+      enddo
+       
+      print*,ncom,fgru(19,18,28),'acc'
+
+! Put all the data in array
+      if (ncom.ge.103680) then
+      
+          print*,numb
+          numb = numb + 1.
+          
+          do j=1,nb
+            do k=1,kgit
+              do i=1,igit
+              
+                gwu_out(numb,k,j,i)=fgru(k,i,j)
+                gwv_out(numb,k,j,i)=fgru(k,i,j)
+                gwt_out(numb,k,j,i)=fgru(k,i,j)
+                
+              end do
+            end do
+          end do
+          
+      end if
+
+! Write data in NC file
+      if (ncom.eq.149760) then
+      
+! Create the file 
+         retval = nf_create(FILE_NAME, nf_clobber, ncid)
+         if (retval .ne. nf_noerr) call handle_err(retval)
+         
+! Define the dimensions
+         retval = nf_def_dim(ncid, LVL_NAME, kgit, lvl_dimid)
+         if (retval .ne. nf_noerr) call handle_err(retval)
+         
+         retval = nf_def_dim(ncid, LAT_NAME, nb, lat_dimid)
+         if (retval .ne. nf_noerr) call handle_err(retval)
+         
+         retval = nf_def_dim(ncid, LON_NAME, igit, lon_dimid)
+         if (retval .ne. nf_noerr) call handle_err(retval)
+         
+         retval = nf_def_dim(ncid, REC_NAME, time, rec_dimid)   !if you are unsure concerning the time length choose 'NF90_UNLIMITED' instead of time (has unlimited length)
+         if (retval .ne. nf_noerr) call handle_err(retval)   
+         
+! Define the coordinate variables. 
+         retval = nf_def_var(ncid, LAT_NAME, NF_REAL, 1, lat_dimid, 
+     &                       lat_varid)
+         if (retval .ne. nf_noerr) call handle_err(retval)
+         
+         retval = nf_def_var(ncid, LON_NAME, NF_REAL, 1, lon_dimid, 
+     &                       lon_varid)
+         if (retval .ne. nf_noerr) call handle_err(retval)
+         
+         retval = nf_def_var(ncid, LVL_NAME, NF_REAL, 1, lvl_dimid, 
+     &                       lvl_varid)
+         if (retval .ne. nf_noerr) call handle_err(retval)
+         
+! Assign units attributes to coordinate variables.
+         retval = nf_put_att_text(ncid, lat_varid, UNITS,  
+     &                            len(LAT_UNITS),LAT_UNITS)
+         if (retval .ne. nf_noerr) call handle_err(retval)
+         
+         retval = nf_put_att_text(ncid, lon_varid, UNITS,  
+     &                            len(LON_UNITS),LON_UNITS)
+         if (retval .ne. nf_noerr) call handle_err(retval)
+         
+         retval = nf_put_att_text(ncid, lvl_varid, UNITS,  
+     &                            len(LVL_UNITS),LVL_UNITS)
+         if (retval .ne. nf_noerr) call handle_err(retval)
+         
+! The dimids array is used to pass the dimids of the dimensions of the netCDF variables
+         dimids(1) = lon_dimid
+         dimids(2) = lat_dimid
+         dimids(3) = lvl_dimid
+         dimids(4) = rec_dimid                          !if you use unlimited variable e.g. time then this variable has to be the last on the list of dimids       
+         
+! Define the netCDF variables for the GWu, GWv and GWt data
+         retval = nf_def_var(ncid, GWu_NAME, NF_REAL, NDIMS, dimids, 
+     &     gwu_varid)
+         if (retval .ne. nf_noerr) call handle_err(retval)
+         
+         retval = nf_def_var(ncid, GWv_NAME, NF_REAL, NDIMS, dimids, 
+     &     gwv_varid)
+         if (retval .ne. nf_noerr) call handle_err(retval)
+         
+         retval = nf_def_var(ncid, GWt_NAME, NF_REAL, NDIMS, dimids, 
+     &     gwt_varid)
+         if (retval .ne. nf_noerr) call handle_err(retval)
+         
+! Assign units attributes to the netCDF variables.
+         retval = nf_put_att_text(ncid, gwu_varid, UNITS,  
+     &                            len(GWu_UNITS),GWu_UNITS)
+         if (retval .ne. nf_noerr) call handle_err(retval)
+         
+         retval = nf_put_att_text(ncid, gwv_varid, UNITS,  
+     &                            len(GWv_UNITS),GWv_UNITS)
+         if (retval .ne. nf_noerr) call handle_err(retval)
+         
+         retval = nf_put_att_text(ncid, gwt_varid, UNITS,  
+     &                            len(GWt_UNITS),GWt_UNITS)
+         if (retval.ne.nf_noerr) call handle_err(retval)
+
+! End define mode.
+         retval = nf_enddef(ncid)
+         if (retval.ne.nf_noerr) call handle_err(retval)
+         
+! Write the coordinate variable data. This will put the latitudes, longitudes and levels of the data grid into the netCDF file.
+         retval = nf_put_var_real(ncid, lat_varid, lats)
+         if (retval.ne.nf_noerr) call handle_err(retval)
+         
+         retval = nf_put_var_real(ncid, lon_varid, lons)
+         if (retval.ne.nf_noerr) call handle_err(retval)
+         
+         retval = nf_put_var_real(ncid, lvl_varid, levs)
+         if (retval.ne.nf_noerr) call handle_err(retval)
+         
+         count(1) = time
+         count(2) = kgit
+         count(3) = nb
+         count(4) = igit
+         start(1) = 1
+         start(2) = 1
+         start(3) = 1
+         start(4) = 1
+         
+! Write the data         
+         retval=nf_put_vara_real(ncid, gwu_varid, start, count, 
+     &        gwu_out)
+         if (retval.ne.nf_noerr) call handle_err(retval)
+         
+         retval=nf_put_vara_real(ncid, gwv_varid, start, count,
+     &        gwv_out)
+         if (retval.ne.nf_noerr) call handle_err(retval)
+         
+         retval=nf_put_vara_real(ncid, gwt_varid, start, count,
+     &        gwt_out)
+         if (retval.ne.nf_noerr) call handle_err(retval)
+     
+! Close the file     
+         retval = nf_close(ncid)
+         if (retval.ne.nf_noerr) call handle_err(retval)
+         
+         print*,"*** SUCCESS writing example file ", FILE_NAME, "!"
+         
+      end if       
+       
+      return
+      end
+      
+      subroutine handle_err(errcode)
+      !implicit none
+      include 'netcdf.inc'
+      integer :: errcode
+
+      print*,'Error: ', nf_strerror(errcode)
+      stop 2
+      end

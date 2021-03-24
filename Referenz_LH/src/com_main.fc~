@@ -1,0 +1,92 @@
+c     GEMEINSAME COMMON-BLOECKE UND FELDER:
+c
+      include 'param_grid_60.f'      
+c-----------
+      common /myfeld/ rmyan1(igit,nb,kgit,3),rmywn1(igit,nb,kgit)
+      common /felder/ an0(nb,kgit,igit,3),an1(nb,kgit,igit,3),
+     &                an2(nb,kgit,igit,3),
+     $              fphi_0(nb,igit),
+     $              philb0(nb,igit),philb1(nb,igit),philb2(nb,igit) 
+c      COMMON/adams/funm1(nb,kgit,igit),fvnm1(nb,kgit,igit),
+c     $             ftnm1(nb,kgit,igit)      
+c----------
+      common/wufi/wn1(nb,kgit+1,igit),fin1(nb,kgit,igit),delfi(nb,igit),
+     &              firn0(nb,igit),firn1(nb,igit),firn2(nb,igit)
+c---------
+      dimension un0(nb,kgit,igit),un1(nb,kgit,igit),un2(nb,kgit,igit),
+     &          vn0(nb,kgit,igit),vn1(nb,kgit,igit),vn2(nb,kgit,igit),
+     &          tn0(nb,kgit,igit),tn1(nb,kgit,igit),tn2(nb,kgit,igit)
+c---------
+      equivalence
+     &    (un0,an0(1,1,1,1)),(vn0,an0(1,1,1,2)),(tn0,an0(1,1,1,3)),
+     &    (un1,an1(1,1,1,1)),(vn1,an1(1,1,1,2)),(tn1,an1(1,1,1,3)),
+     &    (un2,an2(1,1,1,1)),(vn2,an2(1,1,1,2)),(tn2,an2(1,1,1,3))
+c--------- altitude (km), latitude (rad)
+      common /zphi/ z(kgit),phi(nb)
+c-----------------------     UV/IR    -----------------------------
+      common /ncuvif/ so3(nb,kgit),xnumo3(nb,kgit),ozppmv(36,kgit),
+     $        xnumn2(nb,kgit),sn2(nb,kgit),sox(nb,kgit),
+     *        so2(nb,kgit),xnumo2(nb,kgit),co3(45,nb),sunris(kgit),
+     *        dichte(kgit),dichcp(kgit),a1h2o(igit,nb),xnumox(nb,kgit)
+c!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      common/compos/RN2VMR(kgit),RO2VMR(kgit),ROXVMR(kgit)
+c----------------------- factors for H2O ---- strobel.f and ircool.f
+      common /forfkt/ skh,skhnuv(9),skhnir(4),expnuv(9,36),e1nir(4,36),
+     *                phgdk(9,48),x0li(9),dnueli(9),fracd(9),H_wv(36)
+      common /newh2o/ H_h2o_2(53),H_h2o_1(53,36),s1_h2o(53),s2_h2o(53),
+     $                b_h2o(53),c1_h2o(64,36),c2_h2o, 
+     $                F_h2o(53),p0_h2o(53),cm_h2o(53),a_h2o(53)
+c---  icool_new_CO2
+      common /irc/ dichti(118),zi(118),zH2O(72),zint(72),dzi,zunteni, 
+     *		   rni(118,3),rmi(118),roi(118)
+      common /srface/tbot0(nb,igit),tbot1(nb,igit),tbot2(nb,igit),
+     $               T_1000(nb,igit),G_1000(nb,igit),T_NCEP(nb,11)
+c------------ index for interpolation to 118 levels and back to kgit		  
+      common /intpol/ip118var(118),ipVar118(kgit),ipolCOX(72),
+     $               ipolH2O(72),        ipCOXvar(kgit)
+c------------
+      common /forcng/ 
+     $ fnt(kgit,igit,nb),fc(kgit,igit,nb),hs(kgit,igit,nb),
+     $ h_PWs(kgit,igit,nb),frl(kgit,igit,nb),
+     $ fmcnp1(kgit),frunp1(kgit),frvnp1(kgit),
+     $ fut(kgit,igit,nb),fvt(kgit,igit,nb),ftt(kgit,igit,nb),
+     $ drag(nb,kgit,3),
+     $ fgru(kgit,igit,nb),fgrv(kgit,igit,nb),fgrt(kgit,igit,nb),
+     $ fluxgru(kgit,igit,nb),fluxgrv(kgit,igit,nb)             ! by Rliu
+c-----------------------------------------------------------------------
+      common /erg/ rm(kgit),tz(kgit)
+c------------ geometric factors ---- dy-?????
+      common /f/ 
+     +    cor(nb+1),tgfia(nb+1),sinfi(nb+1),cosfi(nb+2),
+     +    dt,dt2,dx(nb+1),dy,dz,defi,alfa(kgit),cosf2(nb+1),sinf2(nb+1)
+cfl      common /k1/ kenanf,ntime,ncom,nsec,nend,nout,kret,nprint,null
+      common /k1/ kenanf,ncom,nsec,null
+c---------------- INPUT setting
+cfl      common /k3/ nsun,ndek,nphi,nfrc,nref,nsrc,mampl,mref,nalt,nstep
+       common /k3/ nfrc,nref,nsrc,mampl,mref,nalt,nstep
+cfl      common /mo/ mfilt,mforc,muvir,miond,mturb,mmcon,mcool,msurf
+       common /mo/ mfilt
+c     ------
+      common /ceddy/ geddy0(kgit),geddy(kgit,igit,nb),
+     $               veddy(kgit),teddy(kgit)
+      common /con/ rl(kgit+1),rx(kgit+1),xmt(kgit+1)
+c------------------- 
+      common /const/ rhos,c_p,pi,zunten,zoben,h,rou(kgit),row(kgit)
+      common /const1/ g,RgSI,Rf_c,co2pmv,RgSGS,dich0
+c---------------------------------------------------------------
+      common /charac/ f2_old,f2_new,f2_nfm,
+     $              fort8,fort14,ref,an1dat,modul,al_dat
+      character *80 f2_old,f2_new,
+     $              fort8,fort14,ref,an1dat,modul,al_dat
+c---------------------------------------------------------------
+      dimension ken1(64) ! <-->/k1/
+      equivalence (ken1,kenanf)
+c-------------------FL-2014/04/10------------------------------------------------
+      common/legandr/pfleg
+      common/fourier/pf1,pf3,pf5,pf7,pf9,pf11,pf2,pf12
+      common/co2o3/ CO2
+
+
+
+
+

@@ -1,0 +1,14 @@
+changes for this Version:
+
+- strobel/data_strobel: g->gs
+- init: sinphi deletet from Lorentz deflection
+- model: included acc_ASM for GW Yigit param.
+- included files for new GWP
+- com_main: frl inserted
+- imake: new files inserted for compilation
+- molcon: 5760->86400
+- 56 Level-Version (with new f2, kgit=56)
+- increased time step: 225s (NTIME=16)
+-> NPHI=46080 (Tag 120)
+-> NSUN=126720 (Tag 330)
+- muam2netcdf.py aktualisiert für neue Werte
